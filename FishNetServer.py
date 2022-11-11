@@ -5,9 +5,9 @@
 # 10/8/22
 # Simple proxy/model for network scripting
 
-__version__ = "v1.0"
-__desc__ = "FishNet " + __version__ + \
-           "\nHello, and thanks for all the fish!"
+__version__ = 'v1.0'
+__desc__ = 'FishNet ' + __version__ + \
+           '\nHello, and thanks for all the fish!'
 
 import json
 import time
@@ -58,15 +58,6 @@ def setup():
 
     SUPPORTED_ATTRIBUTES = [ 'ipaddr', 'macaddr', 'nports' ]
 
-def findDev(key, val):
-    print(len(DEVICES))
-    for i in range(0,len(DEVICES)):
-        val = DEVICES[i].get(key)
-        if val != None:
-            return DEVICES[i]
-        else:
-            return None
-
 # validate token
 def chkToken(checkval):
     global TOKEN
@@ -84,11 +75,9 @@ def chkDevice(hostName):
 
     # check the device dictionary for the specified hostname
     for dev in DEVICES:
-        print('looking in ', dev, ' for ', hostName)
         chkName = dev.get('hostname')
         if chkName == hostName:
             returnVal = True
-            print('found it!')
             break
 
     return returnVal
@@ -102,12 +91,21 @@ def chkAttribute(attribute):
 
 # validate the value based on the attribute
 def chkValue(attribute, value):
-    print('validating', attribute, ',', value)
     IPADDR = 'ipaddr'
     returnStat = False
     if attribute == IPADDR:
         returnStat = validateIP(value)
     return returnStat
+
+# find device val using key
+def findDev(key, val):
+    # print('findDev: key=', key, ' val=', val) # debug
+    for i in range(0,len(DEVICES)):
+        find_val = DEVICES[i].get(key)
+        if find_val == val:
+            return DEVICES[i]
+
+    return None
 
 # function to validate IP address
 def validateIP(ipaddr):
@@ -127,18 +125,14 @@ def setValue(host, attr, val):
     dev = findDev('hostname', host)
     # print('setValue: entry=', entry) # debug
     dev[attr] = val
-    
-
-@app.route('/success/<name>')
-def success(name):
-    print('in success, name=', name)
-    return jsonify(TOKEN) 
 
 # handle login and get TOKEN via GET or POST
 @app.route('/login',methods = ['POST', 'GET'])
 def login():
-    errStr = ""
+
+    errStr = ''
     returnStat = status.HTTP_200_OK
+
     if request.method == 'POST':   # POST
         user = request.form['user']
         password = request.form['password']
@@ -146,33 +140,38 @@ def login():
         user = request.args.get('user')
         password = request.args.get('password')
     # validate
-    print('user=',user,'pword=',password)
     if user != USER or password != PWORD:
         errStr = 'invalid user or password'
         returnStat = status.HTTP_401_UNAUTHORIZED
     return TOKEN, returnStat
 
-# get config (one device) -- "show run"
-# get config (all DEVICES)
+# handle GET to get inventory
 @app.route('/get')
 def get():
+
     req_args = request.args  # req_args is an ImmutableMultiDict
     #print('req_args = ', req_args, 'len = ', len(req_args)) # debug
     if len(req_args) == 0:
-        return jsonify(DEVICES)
+        return jsonify(DEVICES), status.HTTP_200_OK
+        #return jsonify(DEVICES)
     else:
         try_key = 'hostname'
         req_val = request.args.get(try_key, default=None, type=None)
         if (req_val == None):
-            return jsonify('invalid key')
+            #return jsonify('invalid key')
+            return 'invalid key', status.HTTP_404_NOT_FOUND
         else:
             comp = findDev(try_key, req_val)
-            return comp
+            if comp == None:
+                #return jsonify('invalid hostname')
+                return 'invalid hostname', status.HTTP_404_NOT_FOUND
+            else:
+                return comp, status.HTTP_200_OK
 
-# set an attribute
+# handle POST to set an attribute
 @app.route('/set',methods = ['POST'])
 def set():
-    errStr = "success!"
+    errStr = 'success!'
     returnStat = errStr, status.HTTP_200_OK
 
     if request.method == 'GET': # HTTP GET is not supported for set
@@ -188,7 +187,7 @@ def set():
             print(errStr)
             returnStat = errStr, status.HTTP_401_UNAUTHORIZED
         else:
-            print('set: token accepted')
+            # print('set: token accepted') # debug
             host = request.form['hostname']
             attr = request.form['attribute']
             val = request.form['value']
@@ -209,7 +208,8 @@ def set():
                 returnStat = errStr, status.HTTP_404_NOT_FOUND
             else:
                 # attribute and value have been validated, safe to set
-                print('host:', host, ', setting', attr, ', value', val)
+                # debug
+                # print('host:', host, ', setting', attr, ', value', val)
                 setValue(host, attr, val)
                 
     return returnStat
@@ -220,7 +220,7 @@ def main():
     #print(DEVICES) # debug
     app.run()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
 
 # TODO
